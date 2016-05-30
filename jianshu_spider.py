@@ -3,7 +3,7 @@ import re
 
 import time
 
-from flask import Flask, request, redirect,abort
+from flask import Flask, request, redirect, abort
 from bs4 import BeautifulSoup
 from aiohttp import ClientSession
 import requests
@@ -18,36 +18,36 @@ domain = 'http://www.jianshu.com'
 # 获取热门
 @app.route('/hot', methods=['GET'])
 def get_hot():
-    return get_category(domain), 200
+    return get_category(domain, category='0'), 200
 
 
 # 获取其他类别的文章
 @app.route('/article/<cid>', methods=['GET'])
 def get_articles(cid):
     url = domain + '/recommendations/notes?category_id='
-    if cid == str(0):
+    if cid == '0':
         return redirect('/hot')
-    elif cid == str(1):
-        url += str(56)
+    elif cid == '1':
+        url += '56'
         return get_category(url), 200
-    elif cid == str(2):
-        url += str(60)
+    elif cid == '2':
+        url += '60'
         return get_category(url), 200
-    elif cid == str(3):
+    elif cid == '3':
         return redirect('/weekly')
-    elif cid == str(4):
+    elif cid == '4':
         return redirect('/monthly')
-    elif cid == str(5):
-        url += str(51)
+    elif cid == '5':
+        url += '51'
         return get_category(url), 200
-    elif cid == str(6):
-        url += str(61)
+    elif cid == '6':
+        url += '61'
         return get_category(url), 200
-    elif cid == str(7):
-        url += str(62)
+    elif cid == '7':
+        url += '62'
         return get_category(url), 200
-    elif cid == str(8):
-        url += str(63)
+    elif cid == '8':
+        url += '63'
         return get_category(url), 200
     else:
         return abort(404)
@@ -68,13 +68,83 @@ def get_monthly():
 
 
 # 获取各类别文章
-def get_category(url):
+def get_category(url, category=None):
     start = time.time()
     response = requests.get(url).text
     soup = BeautifulSoup(response, 'lxml')
+    page = ''
+    if category == '0':
+        data_url = str(soup.select('.ladda-button')[0]['data-url']).replace('/top/daily?', '').replace('%5B%5D',
+                                                                                                       '[]')  # 加载更多的URL
+        page = re.search(r'page=\d{1,2}', data_url).group(0).replace('page=', '')
+    else:
+        data_url = soup.select('.ladda-button')[0]['data-url']
+
+    notes_id = re.findall(r'\d{3,}', data_url)  # 每篇文章的真正的id
+
+    article_list, banner = parse_li(li=soup.select('.article-list > li'))
+    L = [('count', len(article_list)), ('results', article_list),
+         ('banner', banner),
+         ('ids', notes_id),
+         ('page', page)]
+    article_dict = dict(L)
+    json_data = json.dumps(article_dict, ensure_ascii=False)
+    print(str(time.time() - start))  # 话费了6秒左右
+    return json_data.encode('utf-8')
+
+
+# 加载更多文章
+@app.route('/more/hot/<ids>', methods=['GET'])
+def load_hot(ids):
+    return load_more(ids=ids, category='0')
+
+
+@app.route('/more/normal/<ids>', methods=['GET'])
+def load_normal(ids):
+    return load_more(ids=ids, category='1')
+
+
+def load_more(ids, category):
+    t = int(time.time())
+    # session = requests.session()
+    # r = requests.get(domain, cookies=session.cookies).text
+    # soup = BeautifulSoup(r, 'lxml')
+    # token = str(soup.find_all('meta')[12]['content'])
+    headers = {
+        'Accept': 'text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01',
+        # 'X-CSRF-Token': token,
+        'X-Requested-With': 'XMLHttpRequest'
+    }
+    page = ''
+    if category == '0':
+        url = domain + '/top/daily?' + ids + '_=' + str(t)
+        res = requests.get(url=url, headers=headers).text
+        append = re.findall(r'append(.*)', res)[0].replace(r'("', '').replace(r'")', '') \
+            .replace('\\n', '').replace('\\', '')
+
+        soup = BeautifulSoup(r'<html>' + append + r'</html>', 'lxml')
+        article_list, banner = parse_li(soup.select('li'))
+        data_url = str(re.search(r'/top/daily.*', res).group(0).replace('/top/daily?', '').replace('%5B%5D',
+                                                                                                   '[]'))  # 加载更多的URL
+        page = re.search(r'page=\d{1,2}', data_url).group(0).replace('page=', '')
+        notes_id = re.findall(r'\d{3,}', data_url)  # 每篇文章的真正的id
+    else:
+        url = domain + '/recommendations/notes?max_id=' + ids
+        res = requests.get(url=url).text
+        soup = BeautifulSoup(res, 'lxml')
+        article_list, banner = parse_li(li=soup.select('.article-list > li'))
+        data_url = soup.select('.ladda-button')[0]['data-url']
+        notes_id = re.findall(r'\d{3,}', data_url)
+    L = [('results', article_list), ('page', page), ('ids', notes_id), ('banner', banner), ('count', len(article_list))]
+    dic = dict(L)
+    json_data = json.dumps(dic, ensure_ascii=False)
+    return json_data.encode('utf-8')
+
+
+def parse_li(li):
     article_list = list()
     banner = list()
-    for article in soup.select('.article-list > li'):
+    for article in li:
         img = None
         s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'lxml')
         if s.select('.have-img') != []:
@@ -89,10 +159,15 @@ def get_category(url):
         author = s.select('.author-name')[0].string
         date = str(s.select('span')[0]['data-shared-at']).replace('T', ' ').replace('+08:00', '')
         title = s.select('.title')[0].string
-        read = re.search(r'\d+', s.select('.list-footer > a')[0].string).group(0)
-        comment = re.search(r'\d+', s.select('.list-footer > a')[1].string).group(0)
+        if len(s.select('.list-footer > a')) <= 1:
+            read = re.search(r'\d+', s.select('.list-footer > a')[0].string).group(0)
+        else:
+            read = re.search(r'\d+', s.select('.list-footer > a')[0].string).group(0)
+            comment = re.search(r'\d+', s.select('.list-footer > a')[1].string).group(0)
         fav = re.search(r'\d+', s.select('.list-footer > span')[0].string).group(0)
         slug = str(s.select('h4 > a')[0]['href']).replace(r'/p/', '')
+        # note_id = notes_id[index]
+
         if img is not None:
             L = [('author', author), ('date', date), ('title', title), ('read', read),
                  ('comment', comment), ('fav', fav), ('slug', slug), ('img', img), ('avatar', avatar)]
@@ -102,25 +177,7 @@ def get_category(url):
                  ('img', str(avatar).replace('90x90', '200x200'))]
         article_dict = dict(L)
         article_list.append(article_dict)
-    L = [('count', len(article_list)), ('results', article_list), ('banner', banner)]
-    article_dict = dict(L)
-    json_data = json.dumps(article_dict, ensure_ascii=False)
-    print(str(time.time() - start))  # 话费了6秒左右
-    return json_data.encode('utf-8')
-
-
-@app.route('/', methods=['GET'])
-def test():
-    start = time.time()
-    i = int(18)
-    while i > 0:
-        url = 'http://www.jianshu.com/users/1441f4ae075d/latest_articles'
-        res_author = requests.get(url).text
-        # author_soup = BeautifulSoup(res_author, 'lxml')
-        # avatar = author_soup.select('.avatar > img')[0]['src']
-        i -= 1
-    print('访问网页花费的时间:%s' % str(time.time() - start))  # 6秒左右
-    return '完成'
+    return article_list, banner
 
 
 async def get_author_avatar(url, avatar):
