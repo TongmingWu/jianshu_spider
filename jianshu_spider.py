@@ -6,7 +6,7 @@ import time
 from flask import Flask, request, redirect, abort
 from bs4 import BeautifulSoup
 import requests
-from flask.ext.script import Manager
+from flask_script import Manager
 
 app = Flask(__name__)
 app.debug = True
