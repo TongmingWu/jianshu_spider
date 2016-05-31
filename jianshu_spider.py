@@ -5,7 +5,6 @@ import time
 
 from flask import Flask, request, redirect, abort
 from bs4 import BeautifulSoup
-from aiohttp import ClientSession
 import requests
 from flask.ext.script import Manager
 
@@ -178,14 +177,6 @@ def parse_li(li):
         article_dict = dict(L)
         article_list.append(article_dict)
     return article_list, banner
-
-
-async def get_author_avatar(url, avatar):
-    async with ClientSession() as session:
-        async with session.get(url) as response:
-            response = await response.read()
-            author_soup = BeautifulSoup(response, 'lxml')
-            avatar = author_soup.select('.avatar > img')[0]['src']
 
 
 # 获取2015年每月一篇好文章
