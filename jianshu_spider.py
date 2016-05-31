@@ -153,8 +153,8 @@ def parse_li(li):
         author_id = s.select('.author-name')[0]['href']
         res_author = requests.get(domain + author_id + '/latest_articles').text
         # res_author = urllib.request.urlopen(domain+author_id+'/latest_articles').read()
-        # author_soup = BeautifulSoup(res_author, 'lxml')
-        # avatar = author_soup.select('.avatar > img')[0]['src']
+        author_soup = BeautifulSoup(res_author, 'lxml')
+        avatar = author_soup.select('.avatar > img')[0]['src']
         author = s.select('.author-name')[0].string
         date = str(s.select('span')[0]['data-shared-at']).replace('T', ' ').replace('+08:00', '')
         title = s.select('.title')[0].string
@@ -169,10 +169,11 @@ def parse_li(li):
 
         if img is not None:
             L = [('author', author), ('date', date), ('title', title), ('read', read),
-                 ('comment', comment), ('fav', fav), ('slug', slug), ('img', img)]
+                 ('comment', comment), ('fav', fav), ('slug', slug), ('img', img), ('avatar', avatar)]
         else:
             L = [('author', author), ('date', date), ('title', title), ('read', read),
-                 ('comment', comment), ('fav', fav), ('slug', slug)]
+                 ('comment', comment), ('fav', fav), ('slug', slug), ('avatar', avatar),
+                 ('img', str(avatar).replace('90x90', '200x200'))]
         article_dict = dict(L)
         article_list.append(article_dict)
     return article_list, banner
