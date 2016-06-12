@@ -3,10 +3,12 @@ import re
 
 import time
 
+import grequests
 from flask import Flask, request, redirect, abort
 from bs4 import BeautifulSoup
 import requests
 from flask_script import Manager
+import asyncio
 
 app = Flask(__name__)
 app.debug = True
@@ -143,6 +145,7 @@ def load_more(ids, category):
 def parse_li(li):
     article_list = list()
     banner = list()
+
     for article in li:
         img = None
         s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
@@ -151,7 +154,13 @@ def parse_li(li):
             if len(banner) < 5:
                 banner.append(str(img).replace(r'w/300', r'w/640').replace(r'h/300', r'h/240'))
         author_id = s.select('.author-name')[0]['href']
-        res_author = requests.get(domain + author_id + '/latest_articles').text
+        # loop = asyncio.new_event_loop()
+        # asyncio.set_event_loop(loop)
+        # avatar = loop.run_until_complete(get_avatar(author_id))
+        # loop.close()
+
+        req = grequests.get(domain + author_id + '/latest_articles')
+        res_author = grequests.send(req).get().response.text
         author_soup = BeautifulSoup(res_author, 'html.parser')
         avatar = author_soup.select('.avatar > img')[0]['src']
         author = s.select('.author-name')[0].string
@@ -175,6 +184,13 @@ def parse_li(li):
         article_dict = dict(L)
         article_list.append(article_dict)
     return article_list, banner
+
+
+# async def get_avatar(author_id):
+#     res_author = requests.get(domain + author_id + '/latest_articles').text
+#     author_soup = BeautifulSoup(res_author, 'html.parser')
+#     author_avatar = author_soup.select('.avatar > img')[0]['src']
+#     return author_avatar
 
 
 # 获取2015年每月一篇好文章
