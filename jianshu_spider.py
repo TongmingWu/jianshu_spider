@@ -70,7 +70,7 @@ def get_monthly():
 def get_category(url, category=None):
     start = time.time()
     response = requests.get(url).text
-    soup = BeautifulSoup(response, 'lxml')
+    soup = BeautifulSoup(response, 'html.parser')
     page = ''
     if category == '0':
         data_url = str(soup.select('.ladda-button')[0]['data-url']).replace('/top/daily?', '').replace('%5B%5D',
@@ -107,7 +107,7 @@ def load_more(ids, category):
     t = int(time.time())
     # session = requests.session()
     # r = requests.get(domain, cookies=session.cookies).text
-    # soup = BeautifulSoup(r, 'lxml')
+    # soup = BeautifulSoup(r, 'html.parser')
     # token = str(soup.find_all('meta')[12]['content'])
     headers = {
         'Accept': 'text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01',
@@ -121,7 +121,7 @@ def load_more(ids, category):
         append = re.findall(r'append(.*)', res)[0].replace(r'("', '').replace(r'")', '') \
             .replace('\\n', '').replace('\\', '')
 
-        soup = BeautifulSoup(r'<html>' + append + r'</html>', 'lxml')
+        soup = BeautifulSoup(r'<html>' + append + r'</html>', 'html.parser')
         article_list, banner = parse_li(soup.select('li'))
         data_url = str(re.search(r'/top/daily.*', res).group(0).replace('/top/daily?', '').replace('%5B%5D',
                                                                                                    '[]'))  # 加载更多的URL
@@ -130,7 +130,7 @@ def load_more(ids, category):
     else:
         url = domain + '/recommendations/notes?max_id=' + ids
         res = requests.get(url=url).text
-        soup = BeautifulSoup(res, 'lxml')
+        soup = BeautifulSoup(res, 'html.parser')
         article_list, banner = parse_li(li=soup.select('.article-list > li'))
         data_url = soup.select('.ladda-button')[0]['data-url']
         notes_id = re.findall(r'\d{3,}', data_url)
@@ -145,15 +145,14 @@ def parse_li(li):
     banner = list()
     for article in li:
         img = None
-        s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'lxml')
+        s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
         if s.select('.have-img') != []:
             img = s.select('.wrap-img > img ')[0]['src']
             if len(banner) < 5:
                 banner.append(str(img).replace(r'w/300', r'w/640').replace(r'h/300', r'h/240'))
         author_id = s.select('.author-name')[0]['href']
         res_author = requests.get(domain + author_id + '/latest_articles').text
-        # res_author = urllib.request.urlopen(domain+author_id+'/latest_articles').read()
-        author_soup = BeautifulSoup(res_author, 'lxml')
+        author_soup = BeautifulSoup(res_author, 'html.parser')
         avatar = author_soup.select('.avatar > img')[0]['src']
         author = s.select('.author-name')[0].string
         date = str(s.select('span')[0]['data-shared-at']).replace('T', ' ').replace('+08:00', '')
@@ -165,7 +164,6 @@ def parse_li(li):
             comment = re.search(r'\d+', s.select('.list-footer > a')[1].string).group(0)
         fav = re.search(r'\d+', s.select('.list-footer > span')[0].string).group(0)
         slug = str(s.select('h4 > a')[0]['href']).replace(r'/p/', '')
-        # note_id = notes_id[index]
 
         if img is not None:
             L = [('author', author), ('date', date), ('title', title), ('read', read),
@@ -184,11 +182,11 @@ def parse_li(li):
 def get_zodiac():
     url = domain + '/zodiac/2015'
     response = requests.get(url).text
-    soup = BeautifulSoup(response, 'lxml')
+    soup = BeautifulSoup(response, 'html.parser')
     index = 1
     article_list = list()
     for article in soup.select('.swiper-wrapper > div'):
-        s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'lxml')
+        s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
         article_url = str(s.select('div')[0]['src']).replace(r'/p/', '')
         title = s.select('.article-title')[0].string
         content = str(s.select('.content')[0]).replace(r'<br/>', '').replace(r'<div class="content">', '').replace(
@@ -207,29 +205,21 @@ def get_zodiac():
 # 获取文章详情
 @app.route('/detail/<slug>', methods=['GET'])
 def get_detail(slug):
-    # slug = request.args['slug']
     url = domain + '/p/' + slug
     response = requests.get(url).text
-    soup = BeautifulSoup(response, 'lxml')
-    # nid = re.search(r'\d+', re.search(r'notes/\d+', response).group(0)).group(0)
+    soup = BeautifulSoup(response, 'html.parser')
     avatar = soup.select('.avatar > img')[0]['src']
     title = soup.select('title')[0].string
-    # author = soup.select('.author-name > span')[0].string
     created_at = str(soup.select('.author-info > span')[1].string)
-    # end_edited = str(soup.select('.author-info > span')[1]['data-original-title']).replace('最后编辑于 ', '')
     num_list = soup.select('.author-info > div > span')
     font_count = re.search(r'\d+', str(num_list[0])).group(0)
-    # att_num = re.search(r'\d+', str(num_list[1])).group(0)
-    # like_num = re.search(r'\d+', str(num_list[2])).group(0)
     content = str(soup.select('.show-content')[0])
-    # comment_num = re.search(r'\d+', str(soup.select('.comment-head')[0])).group(0)
     script_list = soup.find_all(name='script', type='application/json')
     note = script_list[0].string
     uuid = script_list[1].string
     json_note = dict(json.loads(note))
     json_note['title'] = title
     json_note['created_at'] = created_at
-    # json_note['end_edited'] = end_edited
     json_note['content'] = content
     author = script_list[2].string
     json_author = dict(json.loads(author))
@@ -238,16 +228,6 @@ def get_detail(slug):
     if len(script_list) > 3:
         current_user = script_list[3].string
         print(current_user)
-
-    # text = ''
-    # for p in content:
-    #     text += str(p)
-    # L = [('img', img), ('slug', slug), ('id', nid), ('author', author), ('created_at', created_at),
-    #      ('end_edited', end_edited), ('comment_num', comment_num),
-    #      ('font_num', font_num), ('att_num', att_num), ('like_num', like_num), ('title', title),
-    #      ('content', content)]
-    # dic = dict(L)
-    # json_data = json.dumps(dic, ensure_ascii=False).replace(r'\"', '"').replace(r'"\\', '"').replace(r'\n', '')
     json_data = '{"article":' + json.dumps(json_note,
                                            ensure_ascii=False).replace(r'"\\', '"').replace(r'\n',
                                                                                             '') + ',"uuid":' + uuid + ',"author":' + json.dumps(
@@ -255,16 +235,38 @@ def get_detail(slug):
     return json_data.encode('utf-8')
 
 
+# 获取专题数据
+@app.route('/collections')
+def get_collection():
+    url = domain + '/collections'
+    res = requests.get(url).text
+    soup = BeautifulSoup(res, 'html.parser')
+    json_data = list()
+    # print(res.decode('gbk'))
+    for zhuanti in soup.select('.collections-list > li'):
+        s = BeautifulSoup('<html>' + str(zhuanti) + '</html>', 'html.parser')
+        title = s.select('h5 > a')[0].string
+        avatar = s.select('.avatar > img')[0]['src']
+        att_num = s.select('.follow > span')[0].string
+        description = s.select('.description')[0].string
+        aticle_num = s.select('.blue-link')[0].string.replace('篇文章', '')
+        L = [('title', title), ('avatar', avatar), ('att_num', att_num), ('description', description),
+             ('article_num', aticle_num)]
+        dic = dict(L)
+        json_data.append(dic)
+    return json.dumps(json_data, ensure_ascii=False).encode('utf-8')
+
+
 # 获取文章的评论
 @app.route('/comment/<nid>', methods=['GET'])
 def get_comment(nid):
     url = domain + '/notes/' + nid + '/comments'
     response = requests.get(url).text
-    soup = BeautifulSoup(response, 'lxml')
+    soup = BeautifulSoup(response, 'html.parser')
     comment_list = soup.select('.note-comment')
     review_list = list()
     for comment in comment_list:
-        s = BeautifulSoup(r'<html>' + str(comment) + r'</html>', 'lxml')
+        s = BeautifulSoup(r'<html>' + str(comment) + r'</html>', 'html.parser')
         avatar = s.select('.avatar > img')[0]['src']
         author = s.select('.author-name')[0].string
         floor = re.search(r'\d+', str(s.select('.reply-time > small')[0].string)).group(0)
@@ -274,7 +276,7 @@ def get_comment(nid):
         if s.select('.child-comment') is not None:
             child_comment_list = s.select('.child-comment')
             for child in child_comment_list:
-                c = BeautifulSoup(r'<html>' + str(child) + r'</html>', 'lxml')
+                c = BeautifulSoup(r'<html>' + str(child) + r'</html>', 'html.parser')
                 child_name = c.select('p > a')[0].string
                 replay = re.search(r'@.*', c.select('p')[0].get_text()).group(0)
                 replay_time = s.select('.reply-time > a')[0].string
