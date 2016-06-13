@@ -82,18 +82,12 @@ def get_category(url, category=None):
     notes_id = re.findall(r'\d{3,}', data_url)  # 每篇文章的真正的id
 
     article_list, banner, avatar_list = parse_li(li=soup.select('.article-list > li'))
-    print(str(len(article_list)))
-    print(str(len(avatar_list)))
     i = 0
     for li in article_list:
         # print(avatar_list[i])
         li['avatar'] = avatar_list[i]
         if li['img'] == None:
             li['img'] = str(avatar_list[i]).replace('90x90', '200x200')
-        # if category == '0':
-        #     if i <= 18:
-        #         i += 1
-        # else:
         i += 1
     L = [('count', len(article_list)), ('results', article_list),
          ('banner', banner),
@@ -305,7 +299,7 @@ def get_collection():
              ('article_num', aticle_num)]
         dic = dict(L)
         json_data.append(dic)
-    return json.dumps(json_data, ensure_ascii=False).encode('utf-8')
+    return ('{"results":' + json.dumps(json_data, ensure_ascii=False) + '}').encode('utf-8')
 
 
 # 获取文章的评论
