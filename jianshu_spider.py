@@ -2,13 +2,11 @@ import json
 import re
 
 import time
-
 import grequests
 from flask import Flask, request, redirect, abort
 from bs4 import BeautifulSoup
 import requests
 from flask_script import Manager
-import asyncio
 
 app = Flask(__name__)
 app.debug = True
@@ -83,10 +81,16 @@ def get_category(url, category=None):
 
     notes_id = re.findall(r'\d{3,}', data_url)  # 每篇文章的真正的id
 
-    article_list, banner = parse_li(li=soup.select('.article-list > li'))
+    article_list, banner, avatar_list = parse_li(li=soup.select('.article-list > li'))
+    i = 0
+    for li in article_list:
+        # print(avatar_list[i])
+        li['avatar'] = avatar_list[i]
+        i += 1
     L = [('count', len(article_list)), ('results', article_list),
          ('banner', banner),
          ('ids', notes_id),
+         ('avatar_num', len(avatar_list)),
          ('page', page)]
     article_dict = dict(L)
     json_data = json.dumps(article_dict, ensure_ascii=False)
@@ -124,7 +128,7 @@ def load_more(ids, category):
             .replace('\\n', '').replace('\\', '')
 
         soup = BeautifulSoup(r'<html>' + append + r'</html>', 'html.parser')
-        article_list, banner = parse_li(soup.select('li'))
+        article_list, banner, avatar_list = parse_li(soup.select('li'))
         data_url = str(re.search(r'/top/daily.*', res).group(0).replace('/top/daily?', '').replace('%5B%5D',
                                                                                                    '[]'))  # 加载更多的URL
         page = re.search(r'page=\d{1,2}', data_url).group(0).replace('page=', '')
@@ -145,7 +149,18 @@ def load_more(ids, category):
 def parse_li(li):
     article_list = list()
     banner = list()
+    urls = []
 
+    for article in li:
+        s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
+        author_id = s.select('.author-name')[0]['href']
+        urls.append(domain + author_id + '/latest_articles')
+    urls_first = urls[0:5]
+    urls_second = urls[5:10]
+    urls_third = urls[10:18]
+    avatar_list = parse_urls(urls_first)
+    avatar_list.extend(parse_urls(urls_second))
+    avatar_list.extend(parse_urls(urls_third))
     for article in li:
         img = None
         s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
@@ -153,16 +168,8 @@ def parse_li(li):
             img = s.select('.wrap-img > img ')[0]['src']
             if len(banner) < 5:
                 banner.append(str(img).replace(r'w/300', r'w/640').replace(r'h/300', r'h/240'))
-        author_id = s.select('.author-name')[0]['href']
-        # loop = asyncio.new_event_loop()
-        # asyncio.set_event_loop(loop)
-        # avatar = loop.run_until_complete(get_avatar(author_id))
-        # loop.close()
-
-        req = grequests.get(domain + author_id + '/latest_articles')
-        res_author = grequests.send(req).get().response.text
-        author_soup = BeautifulSoup(res_author, 'html.parser')
-        avatar = author_soup.select('.avatar > img')[0]['src']
+        # author_id = s.select('.author-name')[0]['href']
+        avatar = None
         author = s.select('.author-name')[0].string
         date = str(s.select('span')[0]['data-shared-at']).replace('T', ' ').replace('+08:00', '')
         title = s.select('.title')[0].string
@@ -183,14 +190,25 @@ def parse_li(li):
                  ('img', str(avatar).replace('90x90', '200x200'))]
         article_dict = dict(L)
         article_list.append(article_dict)
-    return article_list, banner
+    return article_list, banner, avatar_list
 
 
-# async def get_avatar(author_id):
-#     res_author = requests.get(domain + author_id + '/latest_articles').text
-#     author_soup = BeautifulSoup(res_author, 'html.parser')
-#     author_avatar = author_soup.select('.avatar > img')[0]['src']
-#     return author_avatar
+def exception_handler(request, exception):
+    print('Request failed')
+
+
+def parse_urls(urls):
+    rs = (grequests.get(u) for u in urls)
+    resulsts = grequests.map(rs, exception_handler=exception_handler)
+    avatar_list = list()
+    for response in resulsts:
+        if response.status_code == 200:
+            author_soup = BeautifulSoup(response.text, 'html.parser')
+            avatar = author_soup.select('.avatar > img')[0]['src']
+            avatar_list.append(str(avatar))
+        elif response.status_code == 503:
+            print('请求过快')
+    return avatar_list
 
 
 # 获取2015年每月一篇好文章
