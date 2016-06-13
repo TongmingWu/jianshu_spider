@@ -281,9 +281,12 @@ def get_detail(slug):
 
 
 # 获取专题数据
-@app.route('/collections')
-def get_collection():
-    url = domain + '/collections'
+@app.route('/collections/<category>')
+def get_collection(category):
+    if category == '53':
+        url = domain + '/collections'
+    elif category == '58':
+        url = domain + '/collections?category_id=58'
     res = requests.get(url).text
     soup = BeautifulSoup(res, 'html.parser')
     json_data = list()
@@ -292,11 +295,12 @@ def get_collection():
         s = BeautifulSoup('<html>' + str(zhuanti) + '</html>', 'html.parser')
         title = s.select('h5 > a')[0].string
         avatar = s.select('.avatar > img')[0]['src']
+        collection_id = re.search('\d+', re.search(r'images/\d{1,3}', str(avatar)).group(0)).group(0)
         att_num = s.select('.follow > span')[0].string
         description = s.select('.description')[0].string
         aticle_num = s.select('.blue-link')[0].string.replace('篇文章', '')
         L = [('title', title), ('avatar', avatar), ('att_num', att_num), ('description', description),
-             ('article_num', aticle_num)]
+             ('article_num', aticle_num), ('collection_id', collection_id)]
         dic = dict(L)
         json_data.append(dic)
     return ('{"results":' + json.dumps(json_data, ensure_ascii=False) + '}').encode('utf-8')
