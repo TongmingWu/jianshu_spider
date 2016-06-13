@@ -86,6 +86,8 @@ def get_category(url, category=None):
     for li in article_list:
         # print(avatar_list[i])
         li['avatar'] = avatar_list[i]
+        if li['img'] == None:
+            li['img'] = str(avatar_list[i]).replace('90x90', '200x200')
         i += 1
     L = [('count', len(article_list)), ('results', article_list),
          ('banner', banner),
