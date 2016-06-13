@@ -56,7 +56,7 @@ def get_articles(cid):
 @app.route('/weekly', methods=['GET'])
 def get_weekly():
     url = domain + '/trending/weekly'
-    return get_category(url), 200
+    return get_category(url, category='0'), 200
 
 
 # 三十日热门
@@ -135,6 +135,8 @@ def load_more(ids, category):
         for li in article_list:
             # print(avatar_list[i])
             li['avatar'] = avatar_list[i]
+            if li['img'] == None:
+                li['img'] = str(avatar_list[i]).replace('90x90', '200x200')
             i += 1
         data_url = str(re.search(r'/top/daily.*', res).group(0).replace('/top/daily?', '').replace('%5B%5D',
                                                                                                    '[]'))  # 加载更多的URL
