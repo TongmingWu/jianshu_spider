@@ -56,7 +56,7 @@ def get_articles(cid):
 @app.route('/weekly', methods=['GET'])
 def get_weekly():
     url = domain + '/trending/weekly'
-    return get_category(url, category='0'), 200
+    return get_category(url), 200
 
 
 # 三十日热门
@@ -82,12 +82,18 @@ def get_category(url, category=None):
     notes_id = re.findall(r'\d{3,}', data_url)  # 每篇文章的真正的id
 
     article_list, banner, avatar_list = parse_li(li=soup.select('.article-list > li'))
+    print(str(len(article_list)))
+    print(str(len(avatar_list)))
     i = 0
     for li in article_list:
         # print(avatar_list[i])
         li['avatar'] = avatar_list[i]
         if li['img'] == None:
             li['img'] = str(avatar_list[i]).replace('90x90', '200x200')
+        # if category == '0':
+        #     if i <= 18:
+        #         i += 1
+        # else:
         i += 1
     L = [('count', len(article_list)), ('results', article_list),
          ('banner', banner),
@@ -166,10 +172,12 @@ def parse_li(li):
         urls.append(domain + author_id + '/latest_articles')
     urls_first = urls[0:5]
     urls_second = urls[5:10]
-    urls_third = urls[10:18]
+    urls_third = urls[10:15]
+    urls_fourth = urls[15:]
     avatar_list = parse_urls(urls_first)
     avatar_list.extend(parse_urls(urls_second))
     avatar_list.extend(parse_urls(urls_third))
+    avatar_list.extend(parse_urls(urls_fourth))
     for article in li:
         img = None
         s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
