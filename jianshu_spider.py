@@ -89,8 +89,8 @@ def get_category(url, category=None):
         i += 1
     L = [('count', len(article_list)), ('results', article_list),
          ('banner', banner),
+         # ('data_url', data_url),
          ('ids', notes_id),
-         ('avatar_num', len(avatar_list)),
          ('page', page)]
     article_dict = dict(L)
     json_data = json.dumps(article_dict, ensure_ascii=False)
@@ -129,6 +129,11 @@ def load_more(ids, category):
 
         soup = BeautifulSoup(r'<html>' + append + r'</html>', 'html.parser')
         article_list, banner, avatar_list = parse_li(soup.select('li'))
+        i = 0
+        for li in article_list:
+            # print(avatar_list[i])
+            li['avatar'] = avatar_list[i]
+            i += 1
         data_url = str(re.search(r'/top/daily.*', res).group(0).replace('/top/daily?', '').replace('%5B%5D',
                                                                                                    '[]'))  # 加载更多的URL
         page = re.search(r'page=\d{1,2}', data_url).group(0).replace('page=', '')
@@ -187,7 +192,7 @@ def parse_li(li):
         else:
             L = [('author', author), ('date', date), ('title', title), ('read', read),
                  ('comment', comment), ('fav', fav), ('slug', slug), ('avatar', avatar),
-                 ('img', str(avatar).replace('90x90', '200x200'))]
+                 ('img', img)]
         article_dict = dict(L)
         article_list.append(article_dict)
     return article_list, banner, avatar_list
