@@ -166,12 +166,14 @@ def parse_li(li):
         urls.append(domain + author_id + '/latest_articles')
     urls_first = urls[0:5]
     urls_second = urls[5:10]
-    urls_third = urls[10:15]
-    urls_fourth = urls[15:]
     avatar_list = parse_urls(urls_first)
     avatar_list.extend(parse_urls(urls_second))
-    avatar_list.extend(parse_urls(urls_third))
-    avatar_list.extend(parse_urls(urls_fourth))
+    if len(urls) > 10:
+        urls_third = urls[10:15]
+        urls_fourth = urls[15:]
+        avatar_list.extend(parse_urls(urls_third))
+        avatar_list.extend(parse_urls(urls_fourth))
+
     for article in li:
         img = None
         s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
@@ -301,10 +303,52 @@ def get_collection(category):
         href = s.a['href'].replace(r'/collection/', '')
         aticle_num = s.select('.blue-link')[0].string.replace('篇文章', '')
         L = [('title', title), ('avatar', avatar), ('att_num', att_num), ('description', description),
-             ('article_num', aticle_num), ('collection_id', collection_id), ('href', href)]
+             ('article_num', aticle_num), ('collection_id', collection_id), ('slug', href)]
         dic = dict(L)
         json_data.append(dic)
     return ('{"results":' + json.dumps(json_data, ensure_ascii=False) + '}').encode('utf-8')
+
+
+# 获取专题详细信息
+@app.route('/collection/<slug>')
+def get_collection_detail(slug):
+    url = domain + '/collection/' + slug
+    res = requests.get(url).text
+    soup = BeautifulSoup(res, 'html.parser')
+    title = soup.select('h3 > a')[0].string
+    topic_avatar = soup.select('.header > img')[0]['src']
+    desc = str(soup.select('.description')[0]).replace(' class="description"', '')
+    a_list = soup.select('.author > a')
+    i = 0
+    admin_list = list()
+    while i < len(a_list):
+        if i == 0:
+            article_num = a_list[i].string.replace('篇文章', '')
+        else:
+            admin_list.append(a_list[i].string)
+        i += 1
+    follow_num = soup.select('.follow > span')[0].string
+    followers = list()
+    for follower in soup.select('.unstyled > li'):
+        name = re.search(r"(?<=data-nickname=\").+?(?=\")|(?<=data-nickname=\').+?(?=\')", str(follower)).group(0)
+        date = re.search(r'(?<=data-created-at=\").+?(?=\")', str(follower)).group(0)
+        avatar = re.search(r'(?<=src=\").+?(?=\")', str(follower)).group(0)
+        href = re.search(r'(?<=href=\").+?(?=\")', str(follower)).group(0).replace(r'/user/', '')
+        L = [('name', name), ('date', date), ('avatar', avatar), ('href', href), ('topic_avatar', topic_avatar)]
+        dic = dict(L)
+        followers.append(dic)
+    article_list, banner, avatar_list = parse_li(soup.select('.article-list > li'))
+    i = 0
+    for li in article_list:
+        # print(avatar_list[i])
+        li['avatar'] = avatar_list[i]
+        if li['img'] == None:
+            li['img'] = str(avatar_list[i]).replace('90x90', '200x200')
+        i += 1
+    L = [('title', title), ('desc', desc), ('article_num', article_num), ('admin_list', admin_list),
+         ('follow_num', follow_num), ('followers', followers), ('article_list', article_list)]
+    json_data = json.dumps(dict(L), ensure_ascii=False).encode('utf-8')
+    return json_data
 
 
 # 获取文章的评论
