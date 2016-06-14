@@ -334,7 +334,7 @@ def get_collection_detail(slug):
         date = re.search(r'(?<=data-created-at=\").+?(?=\")', str(follower)).group(0)
         avatar = re.search(r'(?<=src=\").+?(?=\")', str(follower)).group(0)
         href = re.search(r'(?<=href=\").+?(?=\")', str(follower)).group(0).replace(r'/user/', '')
-        L = [('name', name), ('date', date), ('avatar', avatar), ('href', href), ('topic_avatar', topic_avatar)]
+        L = [('name', name), ('date', date), ('avatar', avatar), ('href', href)]
         dic = dict(L)
         followers.append(dic)
     article_list, banner, avatar_list = parse_li(soup.select('.article-list > li'))
@@ -346,7 +346,8 @@ def get_collection_detail(slug):
             li['img'] = str(avatar_list[i]).replace('90x90', '200x200')
         i += 1
     L = [('title', title), ('desc', desc), ('article_num', article_num), ('admin_list', admin_list),
-         ('follow_num', follow_num), ('followers', followers), ('article_list', article_list)]
+         ('follow_num', follow_num), ('followers', followers), ('article_list', article_list),
+         ('topic_avatar', topic_avatar)]
     json_data = json.dumps(dict(L), ensure_ascii=False).encode('utf-8')
     return json_data
 
