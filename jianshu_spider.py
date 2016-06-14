@@ -298,9 +298,10 @@ def get_collection(category):
         collection_id = re.search('\d+', re.search(r'images/\d{1,3}', str(avatar)).group(0)).group(0)
         att_num = s.select('.follow > span')[0].string
         description = s.select('.description')[0].string
+        href = s.a['href'].replace(r'/collection/', '')
         aticle_num = s.select('.blue-link')[0].string.replace('篇文章', '')
         L = [('title', title), ('avatar', avatar), ('att_num', att_num), ('description', description),
-             ('article_num', aticle_num), ('collection_id', collection_id)]
+             ('article_num', aticle_num), ('collection_id', collection_id), ('href', href)]
         dic = dict(L)
         json_data.append(dic)
     return ('{"results":' + json.dumps(json_data, ensure_ascii=False) + '}').encode('utf-8')
