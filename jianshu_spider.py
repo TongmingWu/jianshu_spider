@@ -375,6 +375,7 @@ def search(q):
                     # , proxies={'http': proxy},timeout=1
                     )
         if res.status_code != 200:
+            print('error')
             time.sleep(1)
             continue
         if t == 'users':
