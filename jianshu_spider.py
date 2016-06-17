@@ -365,7 +365,6 @@ def search(q):
     s.get(domain + '/search?q=' + q + '&type=notes')
     s_type = ['notes', 'notebooks', 'collections', 'users']
     # proxy_pool = get_proxy()
-    urls = []
     json_data = ''
     i = 0
     while i < len(s_type):
@@ -376,6 +375,7 @@ def search(q):
                     # , proxies={'http': proxy},timeout=1
                     )
         if res.status_code != 200:
+            time.sleep(1)
             continue
         if t == 'users':
             json_data += '"' + t + '":' + res.text
