@@ -1,17 +1,16 @@
-import json
-import random
-import re
-
-import time
-import grequests
-import pymysql
-
-pymysql.install_as_MySQLdb()
 from flask import Flask, request, redirect, abort
 from bs4 import BeautifulSoup
 import requests
 from flask_script import Manager
+import json
+import random
+import re
+import time
+import grequests
 import configparser
+import pymysql
+
+pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
 app.debug = True
@@ -374,15 +373,10 @@ def search(q):
         url = domain + '/search/do?q=' + q + '&type=' + t
         urls.append(url)
         # proxy = random.choice(proxy_pool)
-        try:
-            res = s.get(url=url, headers={'Accept': 'application/json, text/javascript, */*; q=0.01',
-                                          'X-Requested-With': 'XMLHttpRequest',
-                                          'Accept-Encoding': 'gzip,deflate,sdch'}
-                        # , proxies={'http': proxy},timeout=1
-                        )
-            if res.status_code != 200:
-                continue
-        except Exception:
+        res = s.get(url=url
+                    # , proxies={'http': proxy},timeout=1
+                    )
+        if res.status_code != 200:
             continue
         else:
             i += 1
