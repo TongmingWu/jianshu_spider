@@ -361,11 +361,11 @@ def get_collection_detail(slug):
 @app.route('/search/<q>')
 def search(q):
     # 存在问题:未登录用户10秒内只能搜索一次
-    # 解决方案:利用代理ip(未解决)
+    # 解决方案:利用代理ip(已解决),但速度过慢
     s = requests.session()
     s.get(domain + '/search?q=' + q + '&type=notes')
     s_type = ['notes', 'notebooks', 'collections', 'users']
-    proxy_pool = get_proxy()
+    # proxy_pool = get_proxy()
     urls = []
     json_data = ''
     i = 0
@@ -373,20 +373,23 @@ def search(q):
         t = s_type[i]
         url = domain + '/search/do?q=' + q + '&type=' + t
         urls.append(url)
-        proxy = random.choice(proxy_pool)
+        # proxy = random.choice(proxy_pool)
         try:
             res = s.get(url=url, headers={'Accept': 'application/json, text/javascript, */*; q=0.01',
                                           'X-Requested-With': 'XMLHttpRequest',
-                                          'Accept-Encoding': 'gzip,deflate,sdch'}, proxies={'http': proxy},
-                        timeout=5).text
+                                          'Accept-Encoding': 'gzip,deflate,sdch'}
+                        # , proxies={'http': proxy},timeout=1
+                        )
+            if res.status_code != 200:
+                continue
         except Exception:
             continue
         else:
             i += 1
         if t == 'users':
-            json_data += '"' + t + '":' + res
+            json_data += '"' + t + '":' + res.text
         else:
-            json_data += '"' + t + '":' + res + ','
+            json_data += '"' + t + '":' + res.text + ','
     return ('{' + json_data + '}').encode('utf-8')
 
 
