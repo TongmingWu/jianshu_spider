@@ -384,6 +384,7 @@ def search(q):
         else:
             json_data += '"' + t + '":' + res.text + ','
             i += 1
+    print(json_data)
     return ('{' + json_data + '}').encode('utf-8')
 
 
