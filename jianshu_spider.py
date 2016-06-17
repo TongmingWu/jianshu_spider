@@ -13,7 +13,7 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 app = Flask(__name__)
-app.debug = True
+# app.debug = True
 manager = Manager(app)
 domain = 'http://www.jianshu.com'
 
