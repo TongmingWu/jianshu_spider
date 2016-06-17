@@ -1,12 +1,17 @@
 import json
+import random
 import re
 
 import time
 import grequests
+import pymysql
+
+pymysql.install_as_MySQLdb()
 from flask import Flask, request, redirect, abort
 from bs4 import BeautifulSoup
 import requests
 from flask_script import Manager
+import configparser
 
 app = Flask(__name__)
 app.debug = True
@@ -350,6 +355,64 @@ def get_collection_detail(slug):
          ('topic_avatar', topic_avatar)]
     json_data = json.dumps(dict(L), ensure_ascii=False).encode('utf-8')
     return json_data
+
+
+# 搜索
+@app.route('/search/<q>')
+def search(q):
+    # 存在问题:未登录用户10秒内只能搜索一次
+    # 解决方案:利用代理ip(未解决)
+    s = requests.session()
+    s.get(domain + '/search?q=' + q + '&type=notes')
+    s_type = ['notes', 'notebooks', 'collections', 'users']
+    proxy_pool = get_proxy()
+    urls = []
+    json_data = ''
+    i = 0
+    while i < len(s_type):
+        t = s_type[i]
+        url = domain + '/search/do?q=' + q + '&type=' + t
+        urls.append(url)
+        proxy = random.choice(proxy_pool)
+        try:
+            res = s.get(url=url, headers={'Accept': 'application/json, text/javascript, */*; q=0.01',
+                                          'X-Requested-With': 'XMLHttpRequest',
+                                          'Accept-Encoding': 'gzip,deflate,sdch'}, proxies={'http': proxy},
+                        timeout=5).text
+        except Exception:
+            continue
+        else:
+            i += 1
+        if t == 'users':
+            json_data += '"' + t + '":' + res
+        else:
+            json_data += '"' + t + '":' + res + ','
+    return ('{' + json_data + '}').encode('utf-8')
+
+
+# 获取代理ip池
+def get_proxy():
+    parser = configparser.ConfigParser()
+    parser.read("config")
+    conn = pymysql.connect(
+            host=parser.get('mysql', 'db_host'),
+            port=parser.getint('mysql', 'db_port'),
+            user=parser.get('mysql', 'db_user'),
+            passwd=parser.get('mysql', 'db_pass'),
+            db=parser.get('mysql', 'db_name'),
+            charset=parser.get('mysql', 'charset')
+    )
+    cur = conn.cursor()
+    sql = 'select * from proxy where isUse = TRUE'
+    cursor = cur.execute(sql)
+    proxies = cur.fetchmany(cursor)
+    proxy_pool = []
+    for proxy in proxies:
+        protocol = proxy[1]
+        ip = proxy[2]
+        port = proxy[3]
+        proxy_pool.append(protocol + '://' + ip + ':' + port)
+    return proxy_pool
 
 
 # 获取文章的评论
