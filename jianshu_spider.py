@@ -371,19 +371,18 @@ def search(q):
     while i < len(s_type):
         t = s_type[i]
         url = domain + '/search/do?q=' + q + '&type=' + t
-        urls.append(url)
         # proxy = random.choice(proxy_pool)
         res = s.get(url=url
                     # , proxies={'http': proxy},timeout=1
                     )
         if res.status_code != 200:
             continue
-        else:
-            i += 1
         if t == 'users':
             json_data += '"' + t + '":' + res.text
+            i += 1
         else:
             json_data += '"' + t + '":' + res.text + ','
+            i += 1
     return ('{' + json_data + '}').encode('utf-8')
 
 
