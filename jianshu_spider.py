@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # coding=utf-8
-from flask import Flask, redirect, abort
+from flask import Flask, redirect, request, abort
 from bs4 import BeautifulSoup
 import requests
 from flask_script import Manager
@@ -17,6 +17,82 @@ app = Flask(__name__)
 app.debug = True
 manager = Manager(app)
 domain = 'http://www.jianshu.com'
+
+
+# login
+@app.route('/login', methods=['POST'])
+def do_login():
+    mobile_number = request.form.get('mobile_number')
+    name = request.form.get('name')
+    password = request.form.get('password')
+    gee_url = 'http://120.25.101.52/gee/test.aspx'
+    login = requests.session()
+    res_login = login.get(url=domain + '/sign_in').text
+    soup = BeautifulSoup(res_login, 'html5lib')
+    gt = soup.select('.captcha > input')[1]['value']
+    cap_id = soup.select('.captcha > input')[4]['value']
+    token = soup.select('.form-horizontal > input')[1]['value']
+    # driver = webdriver.PhantomJS()
+    # driver.get(gee_url)
+    # gt_input = driver.find_element_by_id('txtGT')
+    # gt_input.clear()
+    # gt_input.send_keys(gt)
+    # btn = driver.find_element_by_id('test')
+    # btn.click()
+    # source = driver.page_source
+    gee_s = requests.session()
+    source = gee_s.get(gee_url).text
+    gee_soup = BeautifulSoup(source, 'html.parser')
+    __VIEWSTATE = gee_soup.select('#__VIEWSTATE')[0]['value']
+    __VIEWSTATEGENERATOR = gee_soup.select('#__VIEWSTATEGENERATOR')[0]['value']
+    __EVENTVALIDATION = gee_soup.select('#__EVENTVALIDATION')[0]['value']
+    txtSite = 'http://www.geetest.com/'
+    data = {
+        '__VIEWSTATE': __VIEWSTATE,
+        '__VIEWSTATEGENERATOR': __VIEWSTATEGENERATOR,
+        '__EVENTVALIDATION': __EVENTVALIDATION,
+        'txtGT': gt,
+        'txtSite': gee_url,
+        'test': 'test'
+    }
+    source = gee_s.post(gee_url, data=data).text
+    while True:
+        if re.search(r'"success"', source):
+            validate = re.search(r'validate: "(.*?)"', source).group(0).replace('validate: ', '').replace('"', '')
+            challenge = re.search(r'challenge: "(.*?)"', source).group(0).replace('challenge: ', '').replace('"', '')
+            break
+        else:
+            source = gee_s.post(gee_url, data=data).text
+            time.sleep(1)
+    data = {
+        'utf8': '✓',
+        'authenticity_token': token,
+        'sign_in[country_code]': 'CN',
+        'sign_in[mobile_number]': mobile_number,
+        'sign_in[name]': name,
+        'sign_in[password]': password,
+        'sign_in[is_foreign]': False,
+        'captcha[validation][challenge]': challenge,
+        'captcha[validation][gt]': gt,
+        'captcha[validation][validate]': validate,
+        'captcha[validation][seccode]': validate + '|jordan',
+        'captcha[id]': cap_id,
+        'geetest_challenge': challenge,
+        'geetest_validate': validate,
+        'geetest_seccode': validate + '|jordan',
+        'sign_in[remember_me]': False
+    }
+    result = login.post(url=domain + '/sessions', data=data).text
+    soup = BeautifulSoup(result, 'html.parser')
+    if soup.select('#current_user_id'):
+        current_user_id = soup.select('#current_user_id')[0]['value']
+        current_user_slug = soup.select('#current_user_slug')[0]['value']
+        user_info = json.loads(get_user_latest_articles(current_user_slug).decode('utf-8'))
+        return json.dumps({'user_id': current_user_id, 'user_slug': current_user_slug,
+                           'status_code': 200, 'user_info': user_info},
+                          ensure_ascii=False)
+    else:
+        return abort(404)
 
 
 # hot
@@ -71,7 +147,7 @@ def get_monthly():
     return get_category(url), 200
 
 
-#
+# 获取各分类文章
 def get_category(url, category=None):
     start = time.time()
     response = requests.get(url).text
@@ -117,13 +193,8 @@ def load_normal(ids):
 
 def load_more(ids, category):
     t = int(time.time())
-    # session = requests.session()
-    # r = requests.get(domain, cookies=session.cookies).text
-    # soup = BeautifulSoup(r, 'html.parser')
-    # token = str(soup.find_all('meta')[12]['content'])
     headers = {
         'Accept': 'text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01',
-        # 'X-CSRF-Token': token,
         'X-Requested-With': 'XMLHttpRequest'
     }
     page = ''
@@ -138,7 +209,6 @@ def load_more(ids, category):
         article_list, banner, avatar_list = parse_li(soup.select('li'), get_avatar=True)
         i = 0
         for li in article_list:
-            # print(avatar_list[i])
             li['avatar'] = avatar_list[i]
             if li['img'] == None:
                 li['img'] = str(avatar_list[i]).replace('90x90', '200x200')
@@ -168,8 +238,7 @@ def parse_li(li, get_avatar=False):
 
     if get_avatar is True:
         for article in li:
-            s = BeautifulSoup(r'<html>' + str(article) + r'</html>', 'html.parser')
-            author_id = s.select('.author-name')[0]['href']
+            author_id = article.select('.author-name')[0]['href']
             urls.append(domain + author_id + '/latest_articles')
         urls_first = urls[0:5]
         urls_second = urls[5:10]
@@ -186,7 +255,7 @@ def parse_li(li, get_avatar=False):
         if re.search('have-img', str(article)):
             img = article.select('.wrap-img > img ')[0]['src']
             if len(banner) < 5:
-                banner.append(str(img).replace(r'w/300', r'w/640').replace(r'h/300', r'h/240'))
+                banner.append(str(img).replace(r'w/300', r'w/640').replace(r'h/300', r'h/200'))
         author_slug = article.select('.author-name')[0]['href'].replace('/users/', '')
         avatar = None
         author = article.select('.author-name')[0].string
@@ -213,13 +282,9 @@ def parse_li(li, get_avatar=False):
     return article_list, banner, avatar_list
 
 
-def exception_handler(request, exception):
-    print('Request failed')
-
-
 def parse_urls(urls):
     rs = (grequests.get(u) for u in urls)
-    resulsts = grequests.map(rs, exception_handler=exception_handler)
+    resulsts = grequests.map(rs)
     avatar_list = list()
     for response in resulsts:
         if response.status_code == 200:
@@ -426,7 +491,7 @@ def get_user_latest_articles(slug):
     for entry in sub_collections:
         urls.append(domain + '/collection/' + entry['slug'])
     rs = (grequests.get(u) for u in urls)
-    resulsts = grequests.map(rs, exception_handler=exception_handler)
+    resulsts = grequests.map(rs)
     for (response, entry) in zip(resulsts, sub_collections):
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -562,7 +627,7 @@ def search(q):
             for entry in dic['entries']:
                 urls.append(domain + '/collection/' + entry['slug'])
             rs = (grequests.get(u) for u in urls)
-            resulsts = grequests.map(rs, exception_handler=exception_handler)
+            resulsts = grequests.map(rs)
             for (response, entry) in zip(resulsts, dic['entries']):
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'html.parser')
@@ -638,5 +703,4 @@ def get_comment(nid):
 
 
 if __name__ == '__main__':
-    # app.run('10.12.243.252', 5000)
     manager.run()
