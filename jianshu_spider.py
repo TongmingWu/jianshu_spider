@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # coding=utf-8
-from flask import Flask, redirect, request, abort
+from flask import Flask, redirect, request, render_template, abort
 from bs4 import BeautifulSoup
 import requests
 from flask_script import Manager
@@ -17,6 +17,11 @@ app = Flask(__name__)
 app.debug = True
 manager = Manager(app)
 domain = 'http://www.jianshu.com'
+
+
+@app.route('/')
+def home():
+    return render_template('welcome.html')
 
 
 # login
