@@ -166,7 +166,6 @@ def get_category(url, category=None):
         data_url = soup.select('.ladda-button')[0]['data-url']
 
     notes_id = re.findall(r'\d{3,}', data_url)  # the article real id
-
     article_list, banner, avatar_list = parse_li(li=soup.select('.article-list > li'), get_avatar=True)
     i = 0
     for li in article_list:
@@ -242,9 +241,12 @@ def parse_li(li, get_avatar=False):
     avatar_list = []
 
     if get_avatar is True:
+        ind = 0
         for article in li:
-            author_id = article.select('.author-name')[0]['href']
-            urls.append(domain + author_id + '/latest_articles')
+            if len(article.select('.app-download-btn')) == 0:
+                author_id = article.select('.author-name')[0]['href']
+                urls.append(domain + author_id + '/latest_articles')
+                ind += 1
         urls_first = urls[0:5]
         urls_second = urls[5:10]
         avatar_list = parse_urls(urls_first)
@@ -256,34 +258,35 @@ def parse_li(li, get_avatar=False):
             avatar_list.extend(parse_urls(urls_fourth))
 
     for article in li:
-        img = None
-        if re.search('have-img', str(article)):
-            img = article.select('.wrap-img > img ')[0]['src']
-            if len(banner) < 5:
-                banner.append(str(img).replace(r'w/300', r'w/640').replace(r'h/300', r'h/200'))
-        author_slug = article.select('.author-name')[0]['href'].replace('/users/', '')
-        avatar = None
-        author = article.select('.author-name')[0].string
-        date = str(article.select('span')[0]['data-shared-at']).replace('T', ' ').replace('+08:00', '')
-        title = article.select('.title')[0].string
-        if len(article.select('.list-footer > a')) <= 1:
-            read = re.search(r'\d+', article.select('.list-footer > a')[0].string).group(0)
-        else:
-            read = re.search(r'\d+', article.select('.list-footer > a')[0].string).group(0)
-            comment = re.search(r'\d+', article.select('.list-footer > a')[1].string).group(0)
-        fav = re.search(r'\d+', article.select('.list-footer > span')[0].string).group(0)
-        slug = str(article.select('h4 > a')[0]['href']).replace(r'/p/', '')
+        if len(article.select('.app-download-btn')) == 0:
+            img = None
+            if re.search('have-img', str(article)):
+                img = article.select('.wrap-img > img ')[0]['src']
+                if len(banner) < 5:
+                    banner.append(str(img).replace(r'w/300', r'w/640').replace(r'h/300', r'h/200'))
+            author_slug = article.select('.author-name')[0]['href'].replace('/users/', '')
+            avatar = None
+            author = article.select('.author-name')[0].string
+            date = str(article.select('span')[0]['data-shared-at']).replace('T', ' ').replace('+08:00', '')
+            title = article.select('.title')[0].string
+            if len(article.select('.list-footer > a')) <= 1:
+                read = re.search(r'\d+', article.select('.list-footer > a')[0].string).group(0)
+            else:
+                read = re.search(r'\d+', article.select('.list-footer > a')[0].string).group(0)
+                comment = re.search(r'\d+', article.select('.list-footer > a')[1].string).group(0)
+            fav = re.search(r'\d+', article.select('.list-footer > span')[0].string).group(0)
+            slug = str(article.select('h4 > a')[0]['href']).replace(r'/p/', '')
 
-        if img is not None:
-            L = [('author', author), ('date', date), ('title', title), ('read', read),
-                 ('comment', comment), ('fav', fav), ('slug', slug), ('author_slug', author_slug), ('img', img),
-                 ('avatar', avatar)]
-        else:
-            L = [('author', author), ('date', date), ('title', title), ('read', read),
-                 ('comment', comment), ('fav', fav), ('slug', slug), ('author_slug', author_slug), ('avatar', avatar),
-                 ('img', img)]
-        article_dict = dict(L)
-        article_list.append(article_dict)
+            if img is not None:
+                L = [('author', author), ('date', date), ('title', title), ('read', read),
+                     ('comment', comment), ('fav', fav), ('slug', slug), ('author_slug', author_slug), ('img', img),
+                     ('avatar', avatar)]
+            else:
+                L = [('author', author), ('date', date), ('title', title), ('read', read),
+                     ('comment', comment), ('fav', fav), ('slug', slug), ('author_slug', author_slug), ('avatar', avatar),
+                     ('img', img)]
+            article_dict = dict(L)
+            article_list.append(article_dict)
     return article_list, banner, avatar_list
 
 
